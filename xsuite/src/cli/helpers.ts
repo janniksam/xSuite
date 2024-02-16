@@ -5,6 +5,7 @@ import {
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { createInterface } from "node:readline";
 import { Readable } from "node:stream";
 import { finished } from "node:stream/promises";
 import chalk from "chalk";
@@ -52,3 +53,47 @@ export const rustToolchain = "nightly-2023-12-11";
 export const rustTarget = "wasm32-unknown-unknown";
 
 export const rustKey = `${rustToolchain}-${rustTarget}`;
+
+export const defaultReproducibleDockerImage =
+  "multiversx/sdk-rust-contract-builder:v6.1.1";
+
+export const promptUserWithRetry = async (
+  question: string,
+  defaultAnswer: string,
+  regex: RegExp,
+  invalidInputText?: string,
+): Promise<string> => {
+  invalidInputText ??= "Invalid input! Please try again.";
+
+  let isValid = false;
+  while (!isValid) {
+    const userInput = await promptUser(question, defaultAnswer);
+    isValid = regex.test(userInput);
+    if (!isValid) {
+      logError(invalidInputText);
+    } else {
+      return userInput;
+    }
+  }
+
+  throw Error();
+};
+
+export const promptUser = (
+  question: string,
+  defaultAnswer: string,
+): Promise<string> => {
+  const rl = createInterface({
+    input: process.stdin,
+    output: process.stdout,
+  });
+
+  return new Promise((resolve) => {
+    rl.question(`${question} `, (answer) => {
+      rl.close();
+      answer = answer.length === 0 ? defaultAnswer : answer;
+      answer = answer.trim();
+      resolve(answer);
+    });
+  });
+};

@@ -8,6 +8,7 @@ import { test, beforeEach, afterEach, expect } from "vitest";
 import { stdoutInt, input } from "../_stdio";
 import { Keystore } from "../world/signer";
 import { computeShard } from "../world/utils";
+import { getGid, getUid } from "./buildUtils";
 import { getCommand } from "./cmd";
 import { rustToolchain, rustTarget, rustKey } from "./helpers";
 
@@ -479,6 +480,66 @@ test("new --dir contract | error: already exists", async () => {
     chalk.red(`Directory already exists at "${dirPath}".`) + "\n",
   );
 });
+
+test("new --dir contract && build-reproducible", async () => {
+  stdoutInt.start();
+  await run("new --dir reproducible_src");
+  stdoutInt.stop();
+  expect(fs.readdirSync(process.cwd()).length).toEqual(1);
+  const dir = "reproducible_src";
+  const absDir = path.resolve(dir);
+  expect(stdoutInt.data.split("\n")).toEqual([
+    chalk.blue(
+      `Downloading contract ${chalk.magenta("blank")} in "${absDir}"...`,
+    ),
+    "",
+    chalk.blue("Installing packages..."),
+    chalk.cyan("$ npm install"),
+    "",
+    chalk.blue("Initialized a git repository."),
+    "",
+    chalk.green(
+      `Successfully created ${chalk.magenta("blank")} in "${absDir}".`,
+    ),
+    "",
+    "Inside that directory, you can run several commands:",
+    "",
+    chalk.cyan("  npm run build"),
+    "    Builds the contract.",
+    "",
+    chalk.cyan("  npm run test"),
+    "    Tests the contract.",
+    "",
+    chalk.cyan("  npm run deploy"),
+    "    Deploys the contract to devnet.",
+    "",
+    "We suggest that you begin by typing:",
+    "",
+    chalk.cyan(`  cd ${dir}`),
+    chalk.cyan("  npm run build"),
+    "",
+  ]);
+
+  stdoutInt.start();
+  await run(
+    `build-reproducible --dir ${absDir} --image multiversx/sdk-rust-contract-builder:v6.1.0 --no-docker-interactive --no-docker-tty --target-dir ${tmpDir}/output`,
+  );
+  stdoutInt.stop();
+
+  const userId = getUid();
+  const groupId = getGid();
+  const userArg = userId && groupId ? `--user ${userId}:${groupId} ` : "";
+
+  const splitOutput = stdoutInt.data.split("\n");
+  expect(splitOutput[0]).toBe("$ command -v docker");
+  expect(splitOutput[1]).toBe(`Building project ${tmpDir}/reproducible_src...`);
+  expect(splitOutput[2]).toBe("Running docker...");
+  expect(splitOutput[3]).toBe(
+    `$ docker run ${userArg}--rm --volume ${tmpDir}/output/reproducible_src:/output --volume ${tmpDir}/reproducible_src:/project --volume /tmp/multiversx_sdk_rust_contract_builder/cargo-target-dir:/rust/cargo-target-dir --volume /tmp/multiversx_sdk_rust_contract_builder/cargo-registry:/rust/registry --volume /tmp/multiversx_sdk_rust_contract_builder/cargo-git:/rust/git --env CARGO_TERM_VERBOSE=false multiversx/sdk-rust-contract-builder:v6.1.0 --project project`,
+  );
+  expect(splitOutput[4]).toBe("Reproducible build succeeded...");
+  expect(splitOutput[5]).toBe("");
+}, 1500_000);
 
 const run = (c: string) =>
   getCommand().parseAsync(c.split(" "), { from: "user" });
