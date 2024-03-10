@@ -63,3 +63,7 @@ const isDirBuildable = (p: string) => {
     fs.existsSync(metaPath) && fs.statSync(metaPath).isDirectory();
   return (mvxJsonFileExists || elrondJsonFileExists) && metaDirExists;
 };
+
+export const defaultVerifierUrl = "https://devnet-play-api.multiversx.com";
+export const defaultReproducibleDockerImage =
+  "multiversx/sdk-rust-contract-builder:v6.1.1";

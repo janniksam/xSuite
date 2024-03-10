@@ -1,0 +1,28 @@
+{
+    "buildMetadata": {
+        "builderName": "multiversx/sdk-rust-contract-builder:v6.1.1",
+        "versionRust": "nightly-2023-12-11",
+        "versionBinaryen": "version_112",
+        "versionWabt": "1.0.27-1",
+        "versionScTool": "0.43.3",
+        "targetPlatform": "linux/amd64"
+    },
+    "buildOptions": {
+        "packageWholeProjectSrc": true,
+        "specificContract": null,
+        "cargoTargetDir": "/rust/cargo-target-dir",
+        "noWasmOpt": false,
+        "buildRootFolder": "/tmp/project"
+    },
+    "contracts": {
+        "data": {
+            "version": "0.0.0",
+            "codehash": "2b9fd6e21cc4e57c647ea3f902f59c29fbb29fc4908bb8f0533fb5e8ccf69ee0",
+            "artifacts": {
+                "bytecode": "data.wasm",
+                "abi": "data.abi.json",
+                "srcPackage": "data-0.0.0.source.json"
+            }
+        }
+    }
+}

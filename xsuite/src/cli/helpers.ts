@@ -54,12 +54,9 @@ export const rustTarget = "wasm32-unknown-unknown";
 
 export const rustKey = `${rustToolchain}-${rustTarget}`;
 
-export const defaultReproducibleDockerImage =
-  "multiversx/sdk-rust-contract-builder:v6.1.1";
-
 export const promptUserWithRetry = async (
   question: string,
-  defaultAnswer: string,
+  defaultAnswer: string | undefined,
   regex: RegExp,
   invalidInputText?: string,
 ): Promise<string> => {
@@ -68,11 +65,11 @@ export const promptUserWithRetry = async (
   let isValid = false;
   while (!isValid) {
     const userInput = await promptUser(question, defaultAnswer);
-    isValid = regex.test(userInput);
+    isValid = regex.test(userInput ?? "");
     if (!isValid) {
       logError(invalidInputText);
     } else {
-      return userInput;
+      return userInput ?? "";
     }
   }
 
@@ -81,8 +78,8 @@ export const promptUserWithRetry = async (
 
 export const promptUser = (
   question: string,
-  defaultAnswer: string,
-): Promise<string> => {
+  defaultAnswer?: string,
+): Promise<string | undefined> => {
   const rl = createInterface({
     input: process.stdin,
     output: process.stdout,
@@ -91,9 +88,39 @@ export const promptUser = (
   return new Promise((resolve) => {
     rl.question(`${question} `, (answer) => {
       rl.close();
-      answer = answer.length === 0 ? defaultAnswer : answer;
-      answer = answer.trim();
-      resolve(answer);
+      let response = answer.length === 0 ? defaultAnswer : answer;
+      response = response?.trim();
+      resolve(response);
     });
   });
+};
+
+export const readJsonFile = (filename: string | path.ParsedPath): any => {
+  const filePath =
+    typeof filename === "string" ? filename : path.format(filename);
+  const fileContent = fs.readFileSync(filePath, "utf-8");
+  return JSON.parse(fileContent);
+};
+
+export const findFileRecursive = (
+  directoryPath: string,
+  filePattern: RegExp,
+): string | null => {
+  const files = fs.readdirSync(directoryPath);
+
+  for (const file of files) {
+    const filePath = path.join(directoryPath, file);
+    const fileStat = fs.statSync(filePath);
+
+    if (fileStat.isDirectory()) {
+      const foundFilePath = findFileRecursive(filePath, filePattern);
+      if (foundFilePath) {
+        return foundFilePath;
+      }
+    } else if (filePattern.test(file)) {
+      return filePath;
+    }
+  }
+
+  return null;
 };
