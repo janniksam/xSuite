@@ -15,6 +15,7 @@ import {
   getUid,
 } from "./buildUtils";
 import {
+  delay,
   findFileRecursive,
   logAndRunCommand,
   logError,
@@ -281,15 +282,11 @@ const publishContract = async (
     sc,
     sourceCode,
     signature,
-    image ?? "",
+    image,
   ).toDictionary();
 
-  console.log(JSON.stringify(request));
+  await verify(verifierUrl, request);
 
-  const url = `${verifierUrl}/verifier`;
-  log(`Request verification at ${url}...`);
-  const response = await Proxy.fetchRaw(url, request);
-  log(JSON.stringify(response));
   return;
 };
 
@@ -317,19 +314,53 @@ const createRequestSignature = async (
     .digest("hex");
 
   const rawDatatoSign: string = `${scAddress}${hashedPayload}`;
-  console.log("raw_data_to_sign: " + rawDatatoSign);
 
   const dataToSign = new SignableMessage({
     message: Buffer.from(rawDatatoSign, "utf8"),
   }).serializeForSigning();
 
-  console.log("message_data_to_sign: " + dataToSign.toString("hex"));
-
   const signature = await signer.sign(dataToSign);
   const signatureHex = signature.toString("hex");
-  console.log("signature: " + signatureHex);
-
   return signatureHex;
+};
+
+const verify = async (baseUrl: string, request: any) => {
+  const verifierUrl = `${baseUrl}/verifier`;
+  log(`Request verification at ${verifierUrl}...`);
+
+  const startTime = new Date().getTime();
+  const response = await Proxy.fetchRaw(verifierUrl, request, {
+    "Content-Type": "application/json",
+  });
+
+  const taskId = response.taskId;
+  if (!taskId) {
+    throw Error(`Verification failed. Response: ${JSON.stringify(response)}`);
+  }
+
+  log(`Verification in process (taskId: ${taskId})...`);
+  log("Please wait while we verify your contract. This may take a while.");
+
+  const url = `${baseUrl}/tasks/${taskId}`;
+  let oldStatus = "";
+  let status = "";
+
+  while (status != "finished") {
+    const response = await Proxy.fetchRaw(url);
+    status = response.status;
+
+    if (status == "finished") {
+      const timeElapsed = (new Date().getTime() - startTime) / 1000;
+      log(`Verification finished in ${timeElapsed} seconds!`);
+      return;
+    } else if (status != oldStatus) {
+      log(`Task status: ${status}`);
+      log(JSON.stringify(response));
+      oldStatus = status;
+    }
+
+    await delay(200);
+  }
 };
 
 const ensureDockerInstalled = () => {
@@ -416,7 +447,7 @@ class ContractVerificationRequest {
     this.contractVariant = contractVariant;
   }
 
-  toDictionary(): Record<string, any> {
+  toDictionary(): any {
     return {
       signature: this.signature,
       payload: {

@@ -124,3 +124,7 @@ export const findFileRecursive = (
 
   return null;
 };
+
+export const delay = (ms: number) => {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+};
